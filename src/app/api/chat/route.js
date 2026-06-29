@@ -14,17 +14,22 @@ const supabase = createClient(
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
 const GROQ_KEY = process.env.GROQ_API_KEY;
+const INDICTRANS_URL = process.env.INDICTRANS_URL;
 
 const EMBED_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent";
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL = "llama-3.1-8b-instant";
 
-// Translation model: flash-lite = ~1000/day free, good at Indian languages.
-// For higher quality at lower quota, use "gemini-2.5-flash".
-const TRANSLATE_MODEL = "gemini-2.5-flash-lite";
-const GEMINI_GEN_URL = (model) =>
-  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+// App language code -> IndicTrans2 (FLORES) code
+const FLORES = {
+  en: "eng_Latn",
+  hi: "hin_Deva",
+  te: "tel_Telu",
+  ta: "tam_Taml",
+  kn: "kan_Knda",
+  mr: "mar_Deva",
+};
 
 const SYSTEM_PROMPT = `You are a helpful assistant for a financial product website.
 You answer ONLY using the provided context, which comes from official PDF documents
@@ -53,65 +58,57 @@ function buildHistory(raw) {
     .map((m) => ({ role: m.role, text: m.text.slice(0, 1000) }));
 }
 
-// --- Gemini call used for translation (with 429 retry) ---
-async function geminiGenerate(prompt, maxTokens, retries = 2) {
-  const res = await fetch(`${GEMINI_GEN_URL(TRANSLATE_MODEL)}?key=${GEMINI_KEY}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0,
-        maxOutputTokens: maxTokens,
-        thinkingConfig: { thinkingBudget: 0 },
-      },
-    }),
-  });
-
-  if (res.status === 429 && retries > 0) {
-    await new Promise((r) => setTimeout(r, 2000));
-    return geminiGenerate(prompt, maxTokens, retries - 1);
+// --- Translation now via your IndicTrans2 Space ---
+async function callIndicTrans(text, sourceLang, targetLang) {
+  const controller = new AbortController();
+  // generous timeout because a sleeping free Space can cold-start slowly
+  const timer = setTimeout(() => controller.abort(), 60000);
+  try {
+    const res = await fetch(`${INDICTRANS_URL}/translate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        source_lang: sourceLang,
+        target_lang: targetLang,
+      }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const detail = await res.text();
+      console.error(`[indictrans] ${res.status}: ${detail}`);
+      throw new Error(`indictrans_failed_${res.status}`);
+    }
+    const data = await res.json();
+    return data.translation;
+  } finally {
+    clearTimeout(timer);
   }
-  if (!res.ok) {
-    const detail = await res.text();
-    console.error(`[translate] ${res.status}: ${detail}`);
-    throw new Error(`translate_failed_${res.status}`);
-  }
-
-  const data = await res.json();
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
 }
 
-// Translate user input -> English. Handles native script, romanized, or English.
-// On any failure, falls back to the original text so the request still works.
 async function translateToEnglish(text, langCode) {
   if (langCode === "en") return text;
-  const langName = LANGUAGE_NAMES[langCode] || "the user's language";
-  const prompt = `You are a translation engine. The user's message may be written in ${langName} native script, in romanized/phonetic ${langName} using English letters (for example "namaskaram" for a greeting), or in English. Understand the user's intent and output ONLY the equivalent English text — no quotes, no explanation, no extra words. If it is already English, return it unchanged.
-
-User message:
-"""${text}"""`;
+  const src = FLORES[langCode];
+  if (!src) return text;
   try {
-    const out = await geminiGenerate(prompt, 1000);
+    const out = await callIndicTrans(text, src, "eng_Latn");
     return out || text;
-  } catch {
-    return text; // graceful fallback
+  } catch (err) {
+    console.error("translateToEnglish failed:", err);
+    return text; // fallback: pass original through
   }
 }
 
-// Translate the English answer -> the user's language.
 async function translateFromEnglish(text, langCode) {
   if (langCode === "en") return text;
-  const langName = LANGUAGE_NAMES[langCode] || "the target language";
-  const prompt = `Translate the following English text into ${langName}, using the native ${langName} script. Keep it clear and simple for a non-technical reader. Output ONLY the translation — no quotes, no explanation.
-
-English text:
-"""${text}"""`;
+  const tgt = FLORES[langCode];
+  if (!tgt) return text;
   try {
-    const out = await geminiGenerate(prompt, 1500);
+    const out = await callIndicTrans(text, "eng_Latn", tgt);
     return out || text;
-  } catch {
-    return text; // graceful fallback: show English rather than nothing
+  } catch (err) {
+    console.error("translateFromEnglish failed:", err);
+    return text; // fallback: show English rather than nothing
   }
 }
 
@@ -210,15 +207,12 @@ export async function POST(req) {
   }
   const rawQuestion = result.clean;
 
-  // Validate language; default to English
   const language = LANGUAGE_NAMES[body.language] ? body.language : "en";
-  const history = buildHistory(body.history); // already English
+  const history = buildHistory(body.history); // English
 
   try {
-    // Step 1: bring the question into English (native / romanized / English all handled)
     const questionEn = await translateToEnglish(rawQuestion, language);
 
-    // Step 2: retrieval — fold in the previous English question for pronouns
     const prevUser = history
       .filter((m) => m.role === "user")
       .slice(-1)
@@ -232,7 +226,6 @@ export async function POST(req) {
     });
     if (error) throw error;
 
-    // Step 3: generate (or fallback), always producing English first
     let answerEn;
     if (!matches || matches.length === 0) {
       answerEn =
@@ -242,10 +235,8 @@ export async function POST(req) {
       answerEn = await generateAnswer(history, context, questionEn);
     }
 
-    // Step 4: translate the answer back to the user's language for display
     const answer = await translateFromEnglish(answerEn, language);
 
-    // Return display text (answer) + English versions (for memory)
     return NextResponse.json({ answer, answerEn, questionEn });
   } catch (err) {
     console.error("chat error:", err);
