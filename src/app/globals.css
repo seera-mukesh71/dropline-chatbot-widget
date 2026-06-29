@@ -151,3 +151,70 @@ body {
   opacity: 0.5;
   cursor: default;
 }
+
+.chatHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.langSelect {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.langSelect option {
+  color: #1a1a1a; /* dark text in the dropdown list */
+}
+
+.micBtn {
+  padding: 10px 12px;
+  font-size: 16px;
+  background: #f4f4f4;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.micBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.micBtn.listening {
+  background: #ef4444;
+  border-color: #ef4444;
+  animation: micpulse 1s infinite;
+}
+
+@keyframes micpulse {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+  70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.speakBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  margin-left: 6px;
+  padding: 0;
+  opacity: 0.6;
+  vertical-align: middle;
+}
+
+.speakBtn:hover {
+  opacity: 1;
+}
+
+.speakBtn.speaking {
+  opacity: 1;
+  color: #ef4444;
+}
