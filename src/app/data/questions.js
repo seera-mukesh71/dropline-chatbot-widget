@@ -1,0 +1,17 @@
+export const SUGGESTED_QUESTIONS = [
+  "What is a Dropline Overdraft and how does it differ from a traditional overdraft?",
+  "How does the dropline mechanism work throughout the facility tenure?",
+  "What factors are considered during the credit assessment process?",
+  "How is the available drawing power determined?",
+  "What happens if my utilization exceeds the available drawing power?",
+  "What documents are typically required to apply for a Dropline Overdraft?",
+  "How is interest calculated on the utilized amount?",
+  "What fees, charges, and penalties may apply to the facility?",
+  "Can I make partial or full repayments before the tenure ends?",
+  "How does the facility renewal and review process work?",
+  "What information is included in the Key Fact Statement (KFS)?",
+  "How does the bank monitor risk throughout the life of the facility?",
+  "What fraud prevention and security measures are in place?",
+  "What communication channels are used to notify customers about their facility?",
+  "What is the process for closing a Dropline Overdraft account?",
+];
