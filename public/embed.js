@@ -14,9 +14,9 @@
   // Inject styles for the floating bubble + the iframe panel
   var style = document.createElement("style");
   style.textContent = [
-    ".dropline-launcher{position:fixed;bottom:24px;right:24px;width:60px;height:60px;border-radius:50%;border:none;background:#2563eb;color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;z-index:2147483000;}",
-    ".dropline-launcher:hover{background:#1d4ed8;}",
-    ".dropline-frame{position:fixed;bottom:96px;right:24px;width:370px;height:520px;max-width:calc(100vw - 32px);max-height:calc(100vh - 120px);border:none;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.2);background:transparent;z-index:2147483000;display:none;}",
+    ".dropline-launcher{position:fixed;bottom:24px;right:24px;width:60px;height:60px;border-radius:50%;border:none;background:#f37920;color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;z-index:2147483000;}",
+    ".dropline-launcher:hover{background:#d9641a;}",
+    ".dropline-frame{position:fixed;bottom:96px;right:24px;width:380px;height:600px;max-width:calc(100vw - 32px);max-height:calc(100vh - 110px);border:none;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.2);background:transparent;z-index:2147483000;display:none;}",
     ".dropline-frame.open{display:block;}",
     "@media (max-width:480px){.dropline-frame{bottom:88px;right:16px;left:16px;width:auto;height:calc(100vh - 110px);}}",
   ].join("");
