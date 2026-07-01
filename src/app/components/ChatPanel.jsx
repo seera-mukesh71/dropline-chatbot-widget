@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { SUGGESTED_QUESTIONS } from "../data/questions";
+import { QUESTIONS_BY_PAGE } from "../data/questions";
 import { LANGUAGES, SPEECH_CODES } from "../data/languages";
 
 export default function ChatPanel() {
@@ -12,7 +12,9 @@ export default function ChatPanel() {
   const [listening, setListening] = useState(false);
   const [sttSupported, setSttSupported] = useState(false);
   const [ttsSupported, setTtsSupported] = useState(false);
-  const [speakingIndex, setSpeakingIndex] = useState(null); // which msg is speaking
+  const [speakingIndex, setSpeakingIndex] = useState(null);
+  const [pageQuestions, setPageQuestions] = useState(QUESTIONS_BY_PAGE.default);
+  const [showQuestions, setShowQuestions] = useState(true);
   const voicesRef = useRef([]);
   const recognitionRef = useRef(null);
   const bottomRef = useRef(null);
@@ -20,6 +22,13 @@ export default function ChatPanel() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, loading]);
+
+  // Read which page's questions to show (host passes ?page=...)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const page = params.get("page");
+    setPageQuestions(QUESTIONS_BY_PAGE[page] || QUESTIONS_BY_PAGE.default);
+  }, []);
 
   useEffect(() => {
     const SR =
@@ -36,7 +45,6 @@ export default function ChatPanel() {
       window.speechSynthesis.onvoiceschanged = loadVoices;
     }
 
-    // Safety: stop any speech if the component unmounts
     return () => {
       if (typeof window !== "undefined" && window.speechSynthesis) {
         window.speechSynthesis.cancel();
@@ -56,11 +64,10 @@ export default function ChatPanel() {
     setSpeakingIndex(null);
   }
 
-  // Read an answer aloud; `index` lets us show the stop button on that message.
   function speak(text, index) {
     if (!ttsSupported || !text) return;
     const synth = window.speechSynthesis;
-    synth.cancel(); // stop anything already speaking
+    synth.cancel();
 
     const code = SPEECH_CODES[language] || "en-IN";
     const utt = new SpeechSynthesisUtterance(text);
@@ -82,7 +89,7 @@ export default function ChatPanel() {
   function startListening() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return;
-    stopSpeaking(); // don't talk over the user
+    stopSpeaking();
 
     const recognition = new SR();
     recognition.lang = SPEECH_CODES[language] || "en-IN";
@@ -152,7 +159,7 @@ export default function ChatPanel() {
           text: displayText,
           textEn: data.answerEn || displayText,
         });
-        botIndex = updated.length - 1; // index of the new bot message
+        botIndex = updated.length - 1;
         return updated;
       });
 
@@ -197,25 +204,10 @@ export default function ChatPanel() {
 
       <div className="chatBody">
         {messages.length === 0 && (
-          <>
-            <p className="chatGreeting">
-              Hi! Ask me about our policies, rules, and product. Choose your
-              language above, then tap a question, type, or use the microphone.
-            </p>
-            <div className="chips">
-              {SUGGESTED_QUESTIONS.map((q) => (
-                <button
-                  key={q}
-                  className="chip"
-                  onClick={() => askQuestion(q)}
-                  disabled={loading}
-                  suppressHydrationWarning
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
-          </>
+          <p className="chatGreeting">
+            Hi! Ask me about our policies, rules, and product. Choose your
+            language above, then tap a question, type, or use the microphone.
+          </p>
         )}
 
         {messages.map((m, i) =>
@@ -251,6 +243,32 @@ export default function ChatPanel() {
         )}
         {loading && <div className="msg bot">…</div>}
         <div ref={bottomRef} />
+      </div>
+
+      {/* Suggested questions — always available, collapsible */}
+      <div className="suggestBar">
+        <button
+          className="suggestToggle"
+          onClick={() => setShowQuestions((v) => !v)}
+          aria-label="Toggle suggested questions"
+        >
+          {showQuestions ? "Hide suggestions ▾" : "Show suggestions ▸"}
+        </button>
+        {showQuestions && (
+          <div className="chips">
+            {pageQuestions.map((q) => (
+              <button
+                key={q}
+                className="chip"
+                onClick={() => askQuestion(q)}
+                disabled={loading}
+                suppressHydrationWarning
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="chatInputRow">

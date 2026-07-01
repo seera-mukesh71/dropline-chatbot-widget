@@ -253,3 +253,22 @@ body {
     height: 100%;
   }
 }
+
+.suggestBar {
+  border-top: 1px solid #eee;
+  padding: 8px 12px;
+  background: #fff;
+  flex-shrink: 0;
+  max-height: 40%;
+  overflow-y: auto;
+}
+
+.suggestToggle {
+  background: transparent;
+  border: none;
+  color: var(--icici-burgundy);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 0 6px;
+}

@@ -23,8 +23,9 @@
   document.head.appendChild(style);
 
   // The iframe holds the actual chat panel (loaded from /widget)
+  var page = thisScript ? thisScript.getAttribute("data-page") : null;
   var frame = document.createElement("iframe");
-  frame.src = origin + "/widget";
+  frame.src = origin + "/widget" + (page ? "?page=" + encodeURIComponent(page) : "");
   frame.className = "dropline-frame";
   frame.title = "Help chat";
   frame.allow = "microphone"; // ready for Phase 3 voice input
