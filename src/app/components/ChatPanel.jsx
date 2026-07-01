@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { QUESTIONS_BY_PAGE } from "../data/questions";
+import { QUESTIONS_BY_PAGE, ALL_QUESTIONS } from "../data/questions";
 import { LANGUAGES, SPEECH_CODES } from "../data/languages";
 
 export default function ChatPanel() {
@@ -15,6 +15,7 @@ export default function ChatPanel() {
   const [speakingIndex, setSpeakingIndex] = useState(null);
   const [pageQuestions, setPageQuestions] = useState(QUESTIONS_BY_PAGE.default);
   const [showQuestions, setShowQuestions] = useState(true);
+  const [suggestions, setSuggestions] = useState([]);
   const voicesRef = useRef([]);
   const recognitionRef = useRef(null);
   const bottomRef = useRef(null);
@@ -23,8 +24,7 @@ export default function ChatPanel() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, loading]);
 
-  // Read which page's questions to show (host passes ?page=...)
-// Read which page's questions to show — initial load (?page=...) AND
+  // Read which page's questions to show — initial load (?page=...) AND
   // live updates sent by the host when it navigates between pages.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -62,6 +62,36 @@ export default function ChatPanel() {
       }
     };
   }, []);
+
+  // Rank questions by how well they match the typed text (keyword overlap).
+  function matchQuestions(text) {
+    const q = text.trim().toLowerCase();
+    if (q.length < 2) return [];
+    const words = q.split(/\s+/).filter(Boolean);
+
+    const scored = ALL_QUESTIONS.map((question) => {
+      const ql = question.toLowerCase();
+      let score = 0;
+      // strong boost if the whole typed phrase appears
+      if (ql.includes(q)) score += 10;
+      // add points for each typed word found in the question
+      for (const w of words) {
+        if (ql.includes(w)) score += 2;
+      }
+      return { question, score };
+    }).filter((s) => s.score > 0);
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, 5).map((s) => s.question);
+  }
+
+  // Debounce: update suggestions ~180ms after typing stops
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setSuggestions(matchQuestions(input));
+    }, 180);
+    return () => clearTimeout(id);
+  }, [input]);
 
   function closeChat() {
     stopSpeaking();
@@ -142,6 +172,7 @@ export default function ChatPanel() {
       { role: "user", text: question, textEn: question },
     ]);
     setInput("");
+    setSuggestions([]);
     setLoading(true);
 
     try {
@@ -256,21 +287,14 @@ export default function ChatPanel() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Suggested questions — always available, collapsible */}
+      {/* While typing: show top-5 matches. Otherwise: the page's chips. */}
       <div className="suggestBar">
-        <button
-          className="suggestToggle"
-          onClick={() => setShowQuestions((v) => !v)}
-          aria-label="Toggle suggested questions"
-        >
-          {showQuestions ? "Hide suggestions ▾" : "Show suggestions ▸"}
-        </button>
-        {showQuestions && (
-          <div className="chips">
-            {pageQuestions.map((q) => (
+        {input.trim().length >= 2 && suggestions.length > 0 ? (
+          <div className="typeahead">
+            {suggestions.map((q) => (
               <button
                 key={q}
-                className="chip"
+                className="suggestItem"
                 onClick={() => askQuestion(q)}
                 disabled={loading}
                 suppressHydrationWarning
@@ -279,6 +303,31 @@ export default function ChatPanel() {
               </button>
             ))}
           </div>
+        ) : (
+          <>
+            <button
+              className="suggestToggle"
+              onClick={() => setShowQuestions((v) => !v)}
+              aria-label="Toggle suggested questions"
+            >
+              {showQuestions ? "Hide suggestions ▾" : "Show suggestions ▸"}
+            </button>
+            {showQuestions && (
+              <div className="chips">
+                {pageQuestions.map((q) => (
+                  <button
+                    key={q}
+                    className="chip"
+                    onClick={() => askQuestion(q)}
+                    disabled={loading}
+                    suppressHydrationWarning
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 

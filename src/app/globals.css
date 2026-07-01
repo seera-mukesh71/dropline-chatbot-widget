@@ -272,3 +272,31 @@ body {
   cursor: pointer;
   padding: 2px 0 6px;
 }
+
+.typeahead {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.suggestItem {
+  text-align: left;
+  background: #fff;
+  border: none;
+  border-bottom: 1px solid #f0e6df;
+  padding: 10px 8px;
+  font-size: 14px;
+  color: #2a2a2a;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.suggestItem:hover {
+  background: var(--icici-tint);
+  color: var(--icici-burgundy);
+}
+
+.suggestItem:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
