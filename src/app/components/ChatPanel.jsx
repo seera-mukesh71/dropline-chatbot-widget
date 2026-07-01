@@ -24,10 +24,21 @@ export default function ChatPanel() {
   }, [messages, loading]);
 
   // Read which page's questions to show (host passes ?page=...)
+// Read which page's questions to show — initial load (?page=...) AND
+  // live updates sent by the host when it navigates between pages.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const page = params.get("page");
-    setPageQuestions(QUESTIONS_BY_PAGE[page] || QUESTIONS_BY_PAGE.default);
+    const initial = params.get("page");
+    setPageQuestions(QUESTIONS_BY_PAGE[initial] || QUESTIONS_BY_PAGE.default);
+
+    function onMessage(e) {
+      if (e.data && e.data.type === "dropline-page-change") {
+        const page = e.data.page;
+        setPageQuestions(QUESTIONS_BY_PAGE[page] || QUESTIONS_BY_PAGE.default);
+      }
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
   }, []);
 
   useEffect(() => {

@@ -22,14 +22,28 @@
   ].join("");
   document.head.appendChild(style);
 
-  // The iframe holds the actual chat panel (loaded from /widget)
-  var page = thisScript ? thisScript.getAttribute("data-page") : null;
+  // The iframe holds the actual chat panel (loaded from /widget).
+  // The host site tells us which page it's on via window.__chatbotPage.
+  var currentPage = window.__chatbotPage || "default";
   var frame = document.createElement("iframe");
-  frame.src = origin + "/widget" + (page ? "?page=" + encodeURIComponent(page) : "");
+  frame.src = origin + "/widget?page=" + encodeURIComponent(currentPage);
   frame.className = "dropline-frame";
   frame.title = "Help chat";
   frame.allow = "microphone"; // ready for Phase 3 voice input
   document.body.appendChild(frame);
+
+  // When the host navigates to another page (single-page app, no iframe reload),
+  // it fires this event. Forward the new page into the iframe so the panel
+  // can swap to that page's suggested questions.
+  window.addEventListener("chatbot:pagechange", function (e) {
+    var page = (e.detail && e.detail.page) || "default";
+    if (frame.contentWindow) {
+      frame.contentWindow.postMessage(
+        { type: "dropline-page-change", page: page },
+        origin
+      );
+    }
+  });
 
   // The floating launcher bubble
   var chatIcon =
